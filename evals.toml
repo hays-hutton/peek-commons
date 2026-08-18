@@ -1,0 +1,224 @@
+commonsformat_evals = "0.2"
+target = "peek"
+target_version = "^1.0.0"
+
+# ---------------------------------------------------------------------------
+# Functional cases (D0)
+# ---------------------------------------------------------------------------
+
+[[cases]]
+name = "native-window-opens"
+description = "Invoking peek with a valid file opens a native macOS window, not a browser."
+category = "functional"
+input = { file = "fixture://gfm-sample.md" }
+expect = { window_opened = true, window_is_native = true, browser_launched = false, window_title = "gfm-sample.md" }
+verifies = ["macos-native-window"]
+
+[[cases]]
+name = "render-gfm"
+description = "Tables, fenced code with highlighting, task lists, headings, and blockquotes all render."
+category = "functional"
+input = { file = "fixture://gfm-sample.md" }
+expect = { rendered_tables = true, rendered_task_lists = true, rendered_fenced_code = true, code_highlighted = true, rendered_blockquotes = true }
+
+[[cases]]
+name = "stdin-static"
+description = "Content piped on stdin renders and no file watcher is started."
+category = "functional"
+input = { stdin = "# hello\n\n- a\n- b\n" }
+expect = { window_opened = true, rendered_heading = true, watcher_started = false }
+verifies = ["no-watch-on-stdin"]
+
+[[cases]]
+name = "file-not-found"
+description = "A missing file produces the exact stderr message and exit code 1 with no window."
+category = "functional"
+input = { file = "missing.md" }
+expect = { stderr = "peek: missing.md not found", exit_code = 1, window_opened = false }
+
+[[cases]]
+name = "scroll-preserved-on-reload"
+description = "After an external save, the reloaded view sits at the same pixel offset."
+category = "functional"
+input = { file = "fixture://gfm-sample.md", scroll_to_px = 800, then_modify_file = true }
+expect = { reloaded = true, scroll_offset_px = 800 }
+verifies = ["scroll-preserve"]
+
+[[cases]]
+name = "link-routing"
+description = "External URLs open in the default browser, relative .md links open in peek, other relative links open in the browser."
+category = "interface"
+input = { file = "fixture://links.md", click_links = ["https://example.com", "./other.md", "./data.csv"] }
+expect = { browser_opened_for = ["https://example.com", "./data.csv"], in_peek_navigations = ["./other.md"] }
+verifies = ["link-routing"]
+
+[[cases]]
+name = "keyboard-navigation"
+description = "Vim-style keys scroll the document without any mouse input."
+category = "interface"
+input = { file = "fixture://gfm-sample.md", keys = ["j", "j", "k", "G", "gg", " "] }
+expect = { scrolled_down = true, scrolled_up = true, reached_bottom = true, reached_top = true }
+
+[[cases]]
+name = "quit-keys"
+description = "q and Cmd+W both exit the process cleanly."
+category = "interface"
+input = { file = "fixture://gfm-sample.md", keys = ["q"] }
+expect = { exit_code = 0 }
+
+[[cases]]
+name = "config-created-on-first-run"
+description = "With no config present, a default config file is written to the XDG path."
+category = "functional"
+input = { file = "fixture://gfm-sample.md", config_absent = true }
+expect = { config_file_created = "~/.config/peek/config.toml" }
+verifies = ["config-file"]
+
+[[cases]]
+name = "config-overrides-visuals"
+description = "Config values for window size, fonts, and colors take effect over the defaults."
+category = "functional"
+input = { file = "fixture://gfm-sample.md", config = "fixture://custom-config.toml" }
+expect = { window_width = 600, background_color = "#ffffff" }
+verifies = ["visual-defaults", "config-file"]
+
+[[cases]]
+name = "default-visual-identity"
+description = "With no config, the viewer uses the peek identity: cream background, 720px column, Plex faces."
+category = "functional"
+input = { file = "fixture://gfm-sample.md", config_absent = true }
+expect = { background_color = "#faf8f5", content_width_px = 720, prose_font_contains = "IBM Plex Serif", code_font_contains = "IBM Plex Mono" }
+verifies = ["visual-defaults"]
+
+[[cases]]
+name = "first-render-latency"
+description = "Time from process start to first painted render stays within budget."
+category = "timing"
+input = { file = "fixture://gfm-sample.md" }
+expect = { first_render_ms_max = 100 }
+verifies = ["render-latency"]
+
+[[cases]]
+name = "reload-latency"
+description = "A saved change is visible within budget of the write completing."
+category = "timing"
+input = { file = "fixture://gfm-sample.md", then_modify_file = true }
+expect = { reload_ms_max = 100 }
+verifies = ["reload-latency"]
+
+[[cases]]
+name = "binary-self-contained"
+description = "The shipped binary is within the size budget and links no non-system libraries."
+category = "resource"
+input = { inspect = "binary" }
+expect = { binary_size_mb_max = 5, non_system_dylibs = 0 }
+verifies = ["binary-size", "single-binary"]
+
+# ---------------------------------------------------------------------------
+# Adversarial cases (D1)
+# ---------------------------------------------------------------------------
+
+[[adversarial]]
+name = "script-injection-blocked"
+description = "Script tags, event-handler attributes, and javascript: URLs in the document never execute."
+category = "input-validation"
+severity = "critical"
+input = { file = "fixture://script-injection.md" }
+expect = { scripts_executed = 0, alert_fired = false, raw_html_in_dom = false }
+verifies = ["no-raw-html"]
+
+[[adversarial]]
+name = "raw-html-stripped"
+description = "Author-supplied HTML elements, including iframes and style tags, are absent from the rendered view."
+category = "input-validation"
+severity = "critical"
+input = { file = "fixture://script-injection.md" }
+expect = { iframes_in_dom = 0, style_tags_from_document = 0 }
+verifies = ["no-raw-html"]
+
+[[adversarial]]
+name = "invalid-utf8-no-crash"
+description = "A document with invalid UTF-8 byte sequences renders its valid portion or an error, without crashing."
+category = "input-validation"
+severity = "error"
+input = { file = "fixture://invalid-utf8.bin" }
+expect = { crashed = false, window_opened = true }
+
+[[adversarial]]
+name = "document-cannot-phone-home"
+description = "A document full of remote references produces zero network requests from the viewer."
+category = "input-validation"
+severity = "critical"
+input = { file = "fixture://remote-refs.md" }
+expect = { network_requests = 0 }
+verifies = ["single-binary"]
+
+[[adversarial]]
+name = "reload-never-steals-focus"
+description = "With another app frontmost, a burst of saves leaves that app frontmost the whole time."
+category = "concurrency"
+severity = "error"
+input = { file = "fixture://gfm-sample.md", other_app_frontmost = true, save_burst_count = 10, save_interval_ms = 50 }
+expect = { focus_changes = 0, final_content_current = true }
+verifies = ["no-focus-steal"]
+
+[[adversarial]]
+name = "rapid-saves-converge"
+description = "Rapid successive writes coalesce; the final render matches the final file content with no stale frame."
+category = "concurrency"
+severity = "error"
+input = { file = "fixture://gfm-sample.md", save_burst_count = 50, save_interval_ms = 10 }
+expect = { final_content_current = true, crashed = false }
+
+[[adversarial]]
+name = "file-deleted-closes"
+description = "Deleting the watched file closes the window and exits cleanly."
+category = "failure-mode"
+severity = "error"
+input = { file = "fixture://gfm-sample.md", then_delete_file = true }
+expect = { window_closed = true, exit_code = 0 }
+verifies = ["close-on-delete"]
+
+[[adversarial]]
+name = "file-renamed-closes"
+description = "Renaming the watched file closes the window and exits cleanly."
+category = "failure-mode"
+severity = "error"
+input = { file = "fixture://gfm-sample.md", then_rename_file = true }
+expect = { window_closed = true, exit_code = 0 }
+verifies = ["close-on-delete"]
+
+[[adversarial]]
+name = "huge-document-memory"
+description = "A megabyte-scale generated document stays within the memory ceiling and remains responsive."
+category = "resource"
+severity = "error"
+input = { generate_markdown_lines = 50000 }
+expect = { resident_memory_mb_max = 50, hung = false }
+verifies = ["memory-ceiling"]
+
+[[adversarial]]
+name = "deep-nesting-no-hang"
+description = "Pathologically nested lists and blockquotes render or degrade without hanging the process."
+category = "resource"
+severity = "error"
+input = { generate_nested_blockquote_depth = 2000 }
+expect = { hung = false, crashed = false }
+
+[[adversarial]]
+name = "malformed-config-falls-back"
+description = "Invalid TOML in the config file produces a stderr warning and default rendering, not a crash."
+category = "failure-mode"
+severity = "error"
+input = { file = "fixture://gfm-sample.md", config = "fixture://broken-config.toml" }
+expect = { crashed = false, used_defaults = true, stderr_warning = true }
+verifies = ["config-file"]
+
+# ---------------------------------------------------------------------------
+# Advisory properties
+# ---------------------------------------------------------------------------
+
+[properties]
+platform = "macos"
+gui = true
+network_at_runtime = false

@@ -1,0 +1,10 @@
+commonsformat = "0.2"
+name = "peek"
+version = "1.0.0"
+description = "A native macOS markdown viewer that sits beside a terminal editor. Renders GitHub Flavored Markdown in a passive WebKit window with live reload that preserves scroll position and never steals focus."
+license = "MPL-2.0"
+authors = [{ name = "Hays Hutton", email = "hays.hutton@gmail.com" }]
+verifies = "./evals.toml"
+homepage = "https://github.com/hays-hutton/peek"
+repository = "https://github.com/hays-hutton/peek-commons"
+keywords = ["markdown", "viewer", "macos", "native", "live-reload", "terminal", "vim"]
