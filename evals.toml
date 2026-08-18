@@ -53,6 +53,30 @@ expect = { browser_opened_for = ["https://example.com", "./data.csv"], in_peek_n
 verifies = ["link-routing"]
 
 [[cases]]
+name = "anchor-link-scrolls"
+description = "Clicking an in-document anchor link smooth-scrolls to the target heading without navigation."
+category = "interface"
+input = { file = "fixture://links.md", click_links = ["#target-heading"] }
+expect = { scrolled_to_heading = "target-heading", navigations = 0, browser_opened = false }
+verifies = ["anchor-links"]
+
+[[cases]]
+name = "images-render-inline"
+description = "A relative image resolves from the source file's directory and renders inline."
+category = "functional"
+input = { file = "fixture://images.md" }
+expect = { images_rendered = 1, image_resolved_relative = true }
+verifies = ["inline-images"]
+
+[[cases]]
+name = "independent-instances"
+description = "Two invocations produce two coexisting windows in two processes; neither replaces the other."
+category = "functional"
+input = { invoke = ["fixture://gfm-sample.md", "fixture://links.md"] }
+expect = { windows_open = 2, processes = 2, windows_replaced = 0 }
+verifies = ["instance-per-invocation"]
+
+[[cases]]
 name = "keyboard-navigation"
 description = "Vim-style keys scroll the document without any mouse input."
 category = "interface"

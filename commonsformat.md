@@ -14,6 +14,13 @@ export, no editing. It is a single window that renders one document beautifully 
 of the way. The target user lives in the terminal; peek exists so they never need a browser
 tab to read markdown.
 
+peek is also built to be spawned by tooling, not just typed by hand. The flagship workflow is
+a coding-agent hook: every markdown document the agent writes is passed to peek, so rendered
+documents accumulate quietly beside the terminal for the user to glance at. This is why
+passivity is a hard requirement — windows opened by a hook must never interrupt the session —
+and why each invocation is an independent process with its own window rather than a
+single-instance application that reuses one window.
+
 The rendered output is GitHub Flavored Markdown: headings, lists, tables, fenced code blocks
 with syntax highlighting, task lists, blockquotes, inline images resolved relative to the
 source file, and links. Typography is warm and book-like by default, with every visual
@@ -37,6 +44,13 @@ parameter overridable through a user configuration file.
 - link-routing: Clicked external URLs must open in the default browser. Clicked relative links
   ending in `.md` must open inside the viewer, replacing the current document. All other
   relative links must open in the default browser.
+- anchor-links: Clicked in-document anchor links (`#heading`) must smooth-scroll to the target
+  heading within the viewer, never leaving the document.
+- inline-images: Images must render inline, with relative paths resolved from the markdown
+  file's directory.
+- instance-per-invocation: Every invocation must start an independent process with its own
+  window. Multiple peek windows must coexist; an invocation must never be redirected to or
+  replace an existing window.
 - single-binary: The viewer must ship as one self-contained binary with all assets (fonts,
   styles, parser, highlighter) embedded. It must make no network requests at runtime and must
   not load code or assets from outside the binary, other than the user's config file and the
@@ -47,10 +61,11 @@ parameter overridable through a user configuration file.
   100 milliseconds of the save completing.
 - binary-size: The compiled binary must be 5 MB or smaller.
 - memory-ceiling: Resident memory must stay at or under 50 MB for typical documents.
-- visual-defaults: Default typography and color must match the peek identity: IBM Plex Serif
-  for prose (Georgia fallback), IBM Plex Mono for code (Menlo fallback), warm cream `#faf8f5`
-  background, content constrained to a centered 720 px column, horizontal scrolling inside
-  code blocks. Every one of these must be a default only, overridable via the config file.
+- visual-defaults: Default typography, color, type scale, and spacing must match the peek
+  identity defined in `references/visual-spec.md`: IBM Plex Serif for prose (Georgia
+  fallback), IBM Plex Mono for code (Menlo fallback), warm cream `#faf8f5` background,
+  content constrained to a centered 720 px column, horizontal scrolling inside code blocks.
+  Every one of these must be a default only, overridable via the config file.
 - config-file: Configuration must be read from `~/.config/peek/config.toml`. On first run,
   when no config exists, a default config file must be created there. Invalid TOML must fall
   back to defaults with a warning on stderr, never a crash.
@@ -100,8 +115,16 @@ q         Quit
 Cmd+W     Quit
 ```
 
+Link behavior: external URLs open in the default browser; relative `.md` links open in peek,
+replacing the current document; anchor links smooth-scroll to their heading; other relative
+links open in the default browser. Images render inline, resolved relative to the source
+file's directory.
+
 Code blocks show a copy button on hover; clicking it copies the block's text to the clipboard
 and briefly shows a checkmark confirmation. Document text is selectable and copyable.
+
+The complete visual contract — palette, type scale, spacing, layout rules — is in
+`references/visual-spec.md`.
 
 Configuration file at `~/.config/peek/config.toml`, TOML with four sections:
 
